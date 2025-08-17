@@ -89,16 +89,13 @@
             border-radius: 20px;
             text-align: center;
             backdrop-filter: blur(10px);
+            opacity: 1;
+            visibility: visible;
+            transition: opacity 0.5s ease-in-out, visibility 0.5s ease-in-out;
         }
         .hidden {
              opacity: 0;
             visibility: hidden;
-
-        }
-
-        .menu{
-            transition: .2s ease;
-
         }
         h1 {
             font-size: 32px;
@@ -130,6 +127,81 @@
         .menu{
             width: 200px;
         }
+
+        /* Мобильные кнопки управления */
+        .mobile-controls {
+            display: none;
+            position: fixed;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            gap: 10px;
+        }
+
+        .mobile-btn {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: linear-gradient(45deg, #009345, #00c95e);
+            border: 3px solid rgba(255, 255, 255, 0.5);
+            color: white;
+            font-size: 24px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            touch-action: manipulation;
+            user-select: none;
+            
+            transition: all 0.2s;
+        }
+
+        .mobile-btn:active {
+            background: rgba(255, 255, 255, 0.4);
+            transform: scale(0.9);
+        }
+
+        /* Медиа запрос для мобильных устройств */
+        @media (max-width: 768px) or (pointer: coarse) {
+            .mobile-controls {
+                display: flex;
+            }
+            
+            .controls {
+                font-size: 12px;
+            }
+            
+            .game-container {
+                padding: 15px;
+                margin: 10px;
+            }
+            
+            canvas {
+                max-width: 100%;
+                height: auto;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .ui {
+                font-size: 14px;
+            }
+            
+            .mobile-btn {
+                width: 60px;
+                height: 60px;
+                font-size: 18px;
+            }
+            
+            h1 {
+                font-size: 24px;
+            }
+            
+            button {
+                padding: 12px 20px;
+                font-size: 16px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -143,7 +215,8 @@
         </div>
         
         <div class="controls">
-            Управление: A / D или ← / → для смены полосы
+            Управление: A / D или ← / → для смены полосы<br>
+            <small>На телефоне: используйте кнопки внизу экрана </small>
         </div>
 
         <!-- Главное меню -->
@@ -159,6 +232,12 @@
             <div class="score">Финальный счет: <span id="finalScore">0</span></div>
             <div class="score">Собрано WOG кофе: <span id="finalCoffee">0</span></div>
             <button onclick="restartGame()">Начать заново</button>
+        </div>
+
+        <!-- Мобильные кнопки управления -->
+        <div class="mobile-controls">
+            <button class="mobile-btn" id="leftBtn"><</button>
+            <button class="mobile-btn" id="rightBtn">></button>
         </div>
     </div>
 
@@ -213,6 +292,8 @@
 
         // Управление
         let keys = {};
+        let touchStartX = 0;
+        let touchStartY = 0;
         
         document.addEventListener('keydown', (e) => {
             keys[e.key.toLowerCase()] = true;
@@ -222,6 +303,55 @@
         document.addEventListener('keyup', (e) => {
             keys[e.key.toLowerCase()] = false;
         });
+
+        // Мобильное управление - кнопки
+        document.getElementById('leftBtn').addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            if (gameState === 'playing' && currentLane > 0 && !player.moving) {
+                changeLane(-1);
+            }
+        });
+
+        document.getElementById('rightBtn').addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            if (gameState === 'playing' && currentLane < 2 && !player.moving) {
+                changeLane(1);
+            }
+        });
+
+        // Мобильное управление - свайпы по экрану
+        document.addEventListener('touchstart', (e) => {
+            touchStartX = e.touches[0].clientX;
+            touchStartY = e.touches[0].clientY;
+        });
+
+        document.addEventListener('touchend', (e) => {
+            if (gameState !== 'playing') return;
+            
+            const touchEndX = e.changedTouches[0].clientX;
+            const touchEndY = e.changedTouches[0].clientY;
+            
+            const deltaX = touchEndX - touchStartX;
+            const deltaY = touchEndY - touchStartY;
+            
+            // Проверяем, что это горизонтальный свайп (а не вертикальный)
+            if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 50) {
+                if (deltaX > 0 && currentLane < 2 && !player.moving) {
+                    // Свайп вправо
+                    changeLane(1);
+                } else if (deltaX < 0 && currentLane > 0 && !player.moving) {
+                    // Свайп влево
+                    changeLane(-1);
+                }
+            }
+        });
+
+        // Предотвращаем скролл на мобильных
+        document.addEventListener('touchmove', (e) => {
+            if (gameState === 'playing') {
+                e.preventDefault();
+            }
+        }, { passive: false });
 
         function handleInput() {
             if (gameState !== 'playing') return;
@@ -273,7 +403,11 @@
             gameState = 'gameOver';
             document.getElementById('finalScore').textContent = score;
             document.getElementById('finalCoffee').textContent = coffeeCount;
-            document.getElementById('gameOverMenu').classList.remove('hidden');
+            
+            // Плавное появление меню Game Over с небольшой задержкой
+            setTimeout(() => {
+                document.getElementById('gameOverMenu').classList.remove('hidden');
+            }, 500);
         }
 
         function updateUI() {
