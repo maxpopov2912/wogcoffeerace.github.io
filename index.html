@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Кофейная Гонка</title>
+     <link rel="icon" type="image/x-icon" href="favicon.ico">
+
+    <style>
+          @font-face {
+            font-family: 'WOG';
+            src: url('fonts/WOG-Regular.woff2') format('woff2');
+            font-weight: 400;
+            font-style: normal;
+        }
+        
+        @font-face {
+            font-family: 'WOG';
+            src: url('fonts/WOG-Medium.woff2') format('woff2');
+            font-weight: 500;
+            font-style: normal;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(135deg, #009345 0%, #8fd6b0 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            font-family: 'WOG', sans-serif;
+            color: white;
+        }
+        .game-container {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px #004620;
+            text-align: center;
+        }
+        canvas {
+            border: 3px solid #fff;
+            border-radius: 15px;
+            background: #004620;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+            display: block;
+            margin: 0 auto;
+        }
+        .ui {
+            margin-top: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 18px;
+            font-weight: bold;
+        }
+        .controls {
+            margin-top: 10px;
+            font-size: 14px;
+            opacity: 0.8;
+        }
+        button {
+            background: linear-gradient(45deg, #009345, #00c95e);
+            border: none;
+            color: white;
+            padding: 15px 15px;
+            font-size: 18px;
+            font-weight: bold;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: transform 0.2s;
+            margin: 10px;
+        }
+        button:hover {
+            transform: scale(1.05);
+        }
+        button:active {
+            transform: scale(0.95);
+        }
+        .menu {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.8);
+            padding: 40px;
+            border-radius: 20px;
+            text-align: center;
+            backdrop-filter: blur(10px);
+        }
+        .hidden {
+             opacity: 0;
+            visibility: hidden;
+
+        }
+
+        .menu{
+            transition: .2s ease;
+
+        }
+        h1 {
+            font-size: 32px;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+        }
+        .score {
+            font-size: 24px;
+            margin: 15px 0;
+        }
+
+        .fuel-logo{
+            display: inline-block;
+            width: 18px;
+            height: 18px;
+            margin-right: 4px;
+        }
+        .fuel{
+            display: flex;
+            align-items: center;
+        }
+
+        .wog-start{
+               display: inline-block;
+            width: 40px;
+            height: 40px;
+        }
+
+        .menu{
+            width: 200px;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <canvas id="gameCanvas" width="400" height="600"></canvas>
+        
+        <div class="ui">
+            <div class="fuel"><img class="fuel-logo" src="wog.png" alt=""> Топливо: <span id="fuel">100</span>%</div>
+            <div>☕ Кофе: <span id="coffee">0</span></div>
+            <div>📍 Счет: <span id="score">0</span></div>
+        </div>
+        
+        <div class="controls">
+            Управление: A / D или ← / → для смены полосы
+        </div>
+
+        <!-- Главное меню -->
+        <div id="startMenu" class="menu">
+            <h1><img class="wog-start" src="wog.png" alt="wog"> Кофейная Гонка! 🚗</h1>
+            <p>Собирай WOG кофе, избегай препятствия!</p>
+            <button onclick="startGame()">Начать игру</button>
+        </div>
+
+        <!-- Меню Game Over -->
+        <div id="gameOverMenu" class="menu hidden">
+            <h1>💥 Авария!</h1>
+            <div class="score">Финальный счет: <span id="finalScore">0</span></div>
+            <div class="score">Собрано WOG кофе: <span id="finalCoffee">0</span></div>
+            <button onclick="restartGame()">Начать заново</button>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Игровые переменры
+        let gameState = 'menu'; // 'menu', 'playing', 'gameOver'
+        let score = 0;
+        let fuel = 100;
+        let coffeeCount = 0;
+        let gameSpeed = 3;
+        let bgY = 0;
+
+        // Полосы движения
+        const lanes = [100, 200, 300]; // x-координаты центров полос
+        let currentLane = 1; // начинаем в средней полосе
+
+        // Игрок
+        const player = {
+            x: lanes[currentLane] - 36.5, // центрируем машинку (73/2)
+            y: 450,
+            width: 73,
+            height: 100,
+            moving: false,
+            targetX: lanes[currentLane] - 36.5
+        };
+
+        // Массивы объектов
+        let obstacles = [];
+        let coffees = [];
+        let particles = [];
+        let lastObstacleSpawn = 0; // время последнего спавна препятствия
+
+        // Изображения
+        const images = {};
+        const imageNames = ['car', 'coffee', 'obstacle', 'bg'];
+        let imagesLoaded = 0;
+
+        // Загрузка изображений
+        imageNames.forEach(name => {
+            images[name] = new Image();
+            images[name].onload = () => {
+                imagesLoaded++;
+                if (imagesLoaded === imageNames.length) {
+                    gameLoop();
+                }
+            };
+            images[name].src = `${name}.png`;
+        });
+
+        // Управление
+        let keys = {};
+        
+        document.addEventListener('keydown', (e) => {
+            keys[e.key.toLowerCase()] = true;
+            handleInput();
+        });
+
+        document.addEventListener('keyup', (e) => {
+            keys[e.key.toLowerCase()] = false;
+        });
+
+        function handleInput() {
+            if (gameState !== 'playing') return;
+
+            if ((keys['a'] || keys['arrowleft']) && currentLane > 0 && !player.moving) {
+                changeLane(-1);
+            }
+            if ((keys['d'] || keys['arrowright']) && currentLane < 2 && !player.moving) {
+                changeLane(1);
+            }
+        }
+
+        function changeLane(direction) {
+            currentLane += direction;
+            player.targetX = lanes[currentLane] - 36.5;
+            player.moving = true;
+        }
+
+        function startGame() {
+            document.getElementById('startMenu').classList.add('hidden');
+            gameState = 'playing';
+            resetGame();
+        }
+
+        function restartGame() {
+            document.getElementById('gameOverMenu').classList.add('hidden');
+            gameState = 'playing';
+            resetGame();
+        }
+
+        function resetGame() {
+            score = 0;
+            fuel = 100;
+            coffeeCount = 0;
+            gameSpeed = 3;
+            currentLane = 1;
+            player.x = lanes[currentLane] - 36.5;
+            player.targetX = player.x;
+            player.moving = false;
+            obstacles = [];
+            coffees = [];
+            particles = [];
+            bgY = 0;
+            lastObstacleSpawn = 0;
+            updateUI();
+        }
+
+        function gameOver() {
+            gameState = 'gameOver';
+            document.getElementById('finalScore').textContent = score;
+            document.getElementById('finalCoffee').textContent = coffeeCount;
+            document.getElementById('gameOverMenu').classList.remove('hidden');
+        }
+
+        function updateUI() {
+            document.getElementById('fuel').textContent = Math.max(0, Math.floor(fuel));
+            document.getElementById('coffee').textContent = coffeeCount;
+            document.getElementById('score').textContent = score;
+        }
+
+        function spawnObstacle() {
+            // 0.02 = 2% шанс каждый кадр (чаще = больше значение)
+            // Для реже: 0.01, для чаще: 0.03
+            if (Math.random() < 0.01) {
+                // Проверяем, что препятствия не заблокируют все полосы
+                const occupiedLanes = getOccupiedLanes();
+                const availableLanes = [0, 1, 2].filter(lane => !occupiedLanes.includes(lane));
+                
+                // Если свободна хотя бы одна полоса, можем спавнить
+                if (availableLanes.length > 1) {
+                    const lane = availableLanes[Math.floor(Math.random() * availableLanes.length)];
+                    obstacles.push({
+                        x: lanes[lane] - 30,
+                        y: -60,
+                        width: 60,
+                        height: 60,
+                        lane: lane
+                    });
+                    lastObstacleSpawn = Date.now();
+                }
+            }
+        }
+
+        // Функция для определения занятых полос
+        function getOccupiedLanes() {
+            const occupied = [];
+            const currentTime = Date.now();
+            
+            obstacles.forEach(obstacle => {
+                // Считаем полосу занятой, если препятствие близко к верху экрана
+                if (obstacle.y >= -60 && obstacle.y <= 100) {
+                    occupied.push(obstacle.lane);
+                }
+            });
+            
+            return occupied;
+        }
+
+        function spawnCoffee() {
+            // 0.015 = 1.5% шанс каждый кадр (чаще = больше значение)
+            // Для реже: 0.01, для чаще: 0.02
+            if (Math.random() < 0.015) {
+                const lane = Math.floor(Math.random() * 3);
+                coffees.push({
+                    x: lanes[lane] - 10, // центрируем кофе (20/2)
+                    y: -33,
+                    width: 20,
+                    height: 33
+                });
+            }
+        }
+
+        function createParticle(x, y, color) {
+            for (let i = 0; i < 8; i++) {
+                particles.push({
+                    x: x,
+                    y: y,
+                    vx: (Math.random() - 0.5) * 10,
+                    vy: (Math.random() - 0.5) * 10,
+                    life: 30,
+                    color: color
+                });
+            }
+        }
+
+        function checkCollisions() {
+            // Проверка столкновений с препятствиями
+            obstacles.forEach((obstacle, index) => {
+                if (player.x < obstacle.x + obstacle.width &&
+                    player.x + player.width > obstacle.x &&
+                    player.y < obstacle.y + obstacle.height &&
+                    player.y + player.height > obstacle.y) {
+                    createParticle(obstacle.x + 30, obstacle.y + 30, '#ff4444');
+                    gameOver();
+                }
+            });
+
+            // Проверка сбора кофе
+            coffees.forEach((coffee, index) => {
+                if (player.x < coffee.x + coffee.width &&
+                    player.x + player.width > coffee.x &&
+                    player.y < coffee.y + coffee.height &&
+                    player.y + player.height > coffee.y) {
+                    coffees.splice(index, 1);
+                    coffeeCount++;
+                    fuel = Math.min(100, fuel + 15);
+                    score += 10;
+                    createParticle(coffee.x + 10, coffee.y + 16, '#8B4513');
+                }
+            });
+        }
+
+        function update() {
+            if (gameState !== 'playing') return;
+
+            // Движение игрока между полосами
+            if (player.moving) {
+                const speed = 8;
+                if (Math.abs(player.x - player.targetX) < speed) {
+                    player.x = player.targetX;
+                    player.moving = false;
+                } else {
+                    player.x += player.x < player.targetX ? speed : -speed;
+                }
+            }
+
+            // Движение фона
+            bgY += gameSpeed;
+            if (bgY >= 600) bgY = 0;
+
+            // Обновление препятствий
+            obstacles.forEach((obstacle, index) => {
+                obstacle.y += gameSpeed;
+                if (obstacle.y > canvas.height) {
+                    obstacles.splice(index, 1);
+                    score += 1;
+                }
+            });
+
+            // Обновление кофе
+            coffees.forEach((coffee, index) => {
+                coffee.y += gameSpeed;
+                if (coffee.y > canvas.height) {
+                    coffees.splice(index, 1);
+                }
+            });
+
+            // Обновление частиц
+            particles.forEach((particle, index) => {
+                particle.x += particle.vx;
+                particle.y += particle.vy;
+                particle.life--;
+                if (particle.life <= 0) {
+                    particles.splice(index, 1);
+                }
+            });
+
+            // Расход топлива
+            fuel -= 0.1;
+            if (fuel <= 0) {
+                gameOver();
+            }
+
+            // Увеличение скорости
+            gameSpeed = 3 + score * 0.005;
+
+            spawnObstacle();
+            spawnCoffee();
+            checkCollisions();
+            updateUI();
+        }
+
+        function draw() {
+            // Очистка canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            if (gameState === 'playing') {
+                // Рисование фона (дублируем для бесконечной прокрутки)
+                ctx.drawImage(images.bg, 0, bgY - 600, 400, 600);
+                ctx.drawImage(images.bg, 0, bgY, 400, 600);
+
+                // Рисование разметки дорог
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = 3;
+                ctx.setLineDash([20, 20]);
+                
+                for (let i = 1; i < 3; i++) {
+                    ctx.beginPath();
+                    ctx.moveTo(50 + i * 100, 0);
+                    ctx.lineTo(50 + i * 100, canvas.height);
+                    ctx.stroke();
+                }
+
+                // Рисование препятствий
+                obstacles.forEach(obstacle => {
+                    ctx.drawImage(images.obstacle, obstacle.x, obstacle.y, obstacle.width, obstacle.height);
+                });
+
+                // Рисование кофе
+                coffees.forEach(coffee => {
+                    ctx.drawImage(images.coffee, coffee.x, coffee.y, coffee.width, coffee.height);
+                });
+
+                // Рисование частиц
+                particles.forEach(particle => {
+                    ctx.globalAlpha = particle.life / 30;
+                    ctx.fillStyle = particle.color;
+                    ctx.fillRect(particle.x, particle.y, 4, 4);
+                });
+                ctx.globalAlpha = 1;
+
+                // Рисование игрока
+                ctx.drawImage(images.car, player.x, player.y, player.width, player.height);
+
+                // Индикатор топлива
+                const fuelBarWidth = 200;
+                const fuelBarHeight = 20;
+                const fuelBarX = (canvas.width - fuelBarWidth) / 2;
+                const fuelBarY = 20;
+
+                ctx.fillStyle = '#333';
+                ctx.fillRect(fuelBarX, fuelBarY, fuelBarWidth, fuelBarHeight);
+                
+                ctx.fillStyle = fuel > 30 ? '#4CAF50' : fuel > 15 ? '#FFC107' : '#F44336';
+                ctx.fillRect(fuelBarX, fuelBarY, (fuelBarWidth * fuel) / 100, fuelBarHeight);
+                
+                ctx.strokeStyle = '#fff';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(fuelBarX, fuelBarY, fuelBarWidth, fuelBarHeight);
+            }
+        }
+
+        function gameLoop() {
+            update();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+    </script>
+</body>
+</html>
