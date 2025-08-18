@@ -1,0 +1,195 @@
+          @font-face {
+            font-family: 'WOG';
+            src: url('../fonts/WOG-Regular.woff2') format('woff2');
+            font-weight: 400;
+            font-style: normal;
+        }
+        
+        @font-face {
+            font-family: 'WOG';
+            src: url('../fonts/WOG-Medium.woff2') format('woff2');
+            font-weight: 500;
+            font-style: normal;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(135deg, #009345 0%, #8fd6b0 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            font-family: 'WOG', sans-serif;
+            color: white;
+        }
+        .game-container {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px #004620;
+            text-align: center;
+        }
+        canvas {
+            border: 3px solid #fff;
+            border-radius: 15px;
+            background: #004620;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+            display: block;
+            margin: 0 auto;
+        }
+        .ui {
+            margin-top: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 18px;
+            font-weight: bold;
+        }
+        .controls {
+            margin-top: 10px;
+            font-size: 14px;
+            opacity: 0.8;
+        }
+        button {
+            background: linear-gradient(45deg, #009345, #00c95e);
+            border: none;
+            color: white;
+            padding: 15px 15px;
+            font-size: 18px;
+            font-weight: bold;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: transform 0.2s;
+            margin: 10px;
+        }
+        button:hover {
+            transform: scale(1.05);
+        }
+        button:active {
+            transform: scale(0.95);
+        }
+        .menu {
+            position: absolute;
+            top: 40%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.8);
+            padding: 40px;
+            border-radius: 20px;
+            text-align: center;
+            backdrop-filter: blur(10px);
+            opacity: 1;
+            visibility: visible;
+            transition: opacity 0.5s ease-in-out, visibility 0.5s ease-in-out;
+        }
+        .hidden {
+             opacity: 0;
+            visibility: hidden;
+        }
+        h1 {
+            font-size: 32px;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+        }
+        .score {
+            font-size: 24px;
+            margin: 15px 0;
+        }
+
+        .fuel-logo{
+            display: inline-block;
+            width: 18px;
+            height: 18px;
+            margin-right: 4px;
+        }
+        .fuel{
+            display: flex;
+            align-items: center;
+        }
+
+        .wog-start{
+               display: inline-block;
+            width: 40px;
+            height: 40px;
+        }
+
+        .menu{
+            width: 200px;
+        }
+
+        /* Мобильные кнопки управления */
+        .mobile-controls {
+            display: none;
+            position: fixed;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            gap: 10px;
+        }
+
+        .mobile-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: linear-gradient(45deg, #009345, #00c95e);
+            border: 3px solid rgba(255, 255, 255, 0.5);
+            color: white;
+            font-size: 24px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            touch-action: manipulation;
+            user-select: none;
+            
+            transition: all 0.2s;
+        }
+
+        .mobile-btn:active {
+            background: rgba(255, 255, 255, 0.4);
+            transform: scale(0.9);
+        }
+
+        /* Медиа запрос для мобильных устройств */
+        @media (max-width: 768px) or (pointer: coarse) {
+            .mobile-controls {
+                display: flex;
+            }
+            
+            .controls {
+                font-size: 12px;
+            }
+            
+            .game-container {
+                padding: 15px;
+                margin: 10px;
+            }
+            
+            canvas {
+                max-width: 100%;
+                height: auto;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .ui {
+                font-size: 14px;
+            }
+            
+            .mobile-btn {
+                width: 40px;
+                height: 40px;
+                font-size: 18px;
+            }
+            
+            h1 {
+                font-size: 24px;
+            }
+            
+            button {
+                padding: 12px 20px;
+                font-size: 16px;
+            }
+        }
