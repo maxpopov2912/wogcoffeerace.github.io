@@ -501,7 +501,7 @@
                 
                 // Текст
                 ctx.fillStyle = '#fff';
-                ctx.font = '12px Arial';
+                ctx.font = '12px WOG';
                 ctx.textAlign = 'center';
                 ctx.fillText('Львів', progressBarX - 25, progressBarY + 15);
                 ctx.fillText('Київ', progressBarX + progressBarWidth + 25, progressBarY + 15);
@@ -525,13 +525,13 @@
                 ctx.strokeRect(fuelBarX, fuelBarY, fuelBarWidth, fuelBarHeight);
                 
                 ctx.fillStyle = '#fff';
-                ctx.font = '12px Arial';
+                ctx.font = '12px WOG';
                 ctx.textAlign = 'center';
                 ctx.fillText('Паливо', fuelBarX + fuelBarWidth/2, fuelBarY - 5);
                 
                 if (invulnerableTimer > 0) {
                     ctx.fillStyle = 'rgba(0, 150, 255, 0.5)';
-                    ctx.font = '14px Arial';
+                    ctx.font = '14px WOG';
                     ctx.textAlign = 'center';
                     ctx.fillText('Ой! Обережно!', canvas.width / 2, 60);
                 }
@@ -545,4 +545,5 @@
         }
     </script>
 </body>
+
 </html>
