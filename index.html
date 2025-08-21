@@ -435,16 +435,7 @@
                 ctx.drawImage(images.bg, 0, bgY - 600, 400, 600);
                 ctx.drawImage(images.bg, 0, bgY, 400, 600);
 
-                ctx.strokeStyle = '#ffffff';
-                ctx.lineWidth = 3;
-                ctx.setLineDash([20, 20]);
-                
-                for (let i = 1; i < 3; i++) {
-                    ctx.beginPath();
-                    ctx.moveTo(50 + i * 100, 0);
-                    ctx.lineTo(50 + i * 100, canvas.height);
-                    ctx.stroke();
-                }
+              
 
                 obstacles.forEach(obstacle => {
                     ctx.drawImage(images.obstacle, obstacle.x, obstacle.y, obstacle.width, obstacle.height);
@@ -547,3 +538,4 @@
 </body>
 
 </html>
+
