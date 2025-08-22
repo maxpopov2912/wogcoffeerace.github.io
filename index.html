@@ -58,15 +58,17 @@
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
 
-        // Игровые переменры
+        // Игровые переменны
         let gameState = 'menu'; // 'menu', 'playing', 'gameOver', 'win'
         let score = 0;
         let fuel = 100;
         let coffeeCount = 0;
+        let lives = 3; // Добавили жизни
         let gameSpeed = 3;
         let bgY = 0;
         let slowDownTimer = 0; // таймер для замедления после столкновения
         let invulnerableTimer = 0; // таймер неуязвимости после столкновения
+        let hotdogTimer = 0; // таймер эффекта хот-дога
         let distanceTraveled = 0; // пройденное расстояние в км
         const totalDistance = 540; // расстояние Львов-Киев в км
 
@@ -87,13 +89,15 @@
         // Массивы объектов
         let obstacles = [];
         let coffees = [];
+        let hotdogs = [];
         let particles = [];
         let lastObstacleSpawn = 0; // время последнего спавна препятствия
         let lastCoffeeSpawn = 0; // время последнего спавна кофе
+        let lastHotdogSpawn = 0; // время последнего спавна хот-дога
 
         // Изображения
         const images = {};
-        const imageNames = ['car', 'coffee', 'obstacle', 'bg'];
+        const imageNames = ['car', 'coffee', 'obstacle', 'bg', 'heart', 'heart-empty', 'hotdog'];
         let imagesLoaded = 0;
 
         // Загрузка изображений
@@ -205,9 +209,11 @@
             score = 0;
             fuel = 100;
             coffeeCount = 0;
+            lives = 3; // Сбрасываем жизни
             gameSpeed = 3;
             slowDownTimer = 0;
             invulnerableTimer = 0;
+            hotdogTimer = 0;
             distanceTraveled = 0;
             currentLane = 1;
             player.x = lanes[currentLane] - 26.5;
@@ -215,10 +221,12 @@
             player.moving = false;
             obstacles = [];
             coffees = [];
+            hotdogs = [];
             particles = [];
             bgY = 0;
             lastObstacleSpawn = 0;
             lastCoffeeSpawn = 0;
+            lastHotdogSpawn = 0;
             updateUI();
         }
 
@@ -285,6 +293,15 @@
                 }
             });
             
+            hotdogs.forEach(hotdog => {
+                if (hotdog.y >= -45 && hotdog.y <= 150) {
+                    const lane = Math.round((hotdog.x + 22.5) / 100);
+                    if (lane >= 0 && lane <= 2) {
+                        occupied.push(lane);
+                    }
+                }
+            });
+            
             return occupied;
         }
 
@@ -308,6 +325,28 @@
             }
         }
 
+        function spawnHotdog() {
+            const currentTime = Date.now();
+            if (currentTime - lastHotdogSpawn > 7700) { // Появляется раз в 7.7 секунд
+                if (Math.random() < 0.3) { // 30% шанс появления
+                    const occupiedLanes = getOccupiedLanes();
+                    const availableLanes = [0, 1, 2].filter(lane => !occupiedLanes.includes(lane));
+                    
+                    if (availableLanes.length > 0) { // Проверяем, что есть свободные полосы
+                        const lane = availableLanes[Math.floor(Math.random() * availableLanes.length)];
+                        hotdogs.push({
+                            x: lanes[lane] - 22.5,
+                            y: -45,
+                            width: 45,
+                            height: 45,
+                            lane: lane
+                        });
+                    }
+                }
+                lastHotdogSpawn = currentTime;
+            }
+        }
+
         function createParticle(x, y, color) {
             for (let i = 0; i < 8; i++) {
                 particles.push({
@@ -322,7 +361,7 @@
         }
 
         function checkCollisions() {
-            if (invulnerableTimer <= 0) {
+            if (invulnerableTimer <= 0 && hotdogTimer <= 0) { // Не получаем урон если есть эффект хот-дога
                 obstacles.forEach((obstacle, index) => {
                     if (player.x < obstacle.x + obstacle.width &&
                         player.x + player.width > obstacle.x &&
@@ -333,11 +372,24 @@
                         createParticle(obstacle.x + 30, obstacle.y + 30, '#ff4444');
                         slowDownTimer = 180;
                         invulnerableTimer = 180;
-                        fuel -= 20;
+                        lives -= 1; // Теряем жизнь вместо топлива
                         
-                        if (fuel <= 0) {
+                        if (lives <= 0) {
                             gameOver();
                         }
+                    }
+                });
+            } else if (hotdogTimer > 0) {
+                // Если действует хот-дог, просто уничтожаем препятствия без урона
+                obstacles.forEach((obstacle, index) => {
+                    if (player.x < obstacle.x + obstacle.width &&
+                        player.x + player.width > obstacle.x &&
+                        player.y < obstacle.y + obstacle.height &&
+                        player.y + player.height > obstacle.y) {
+                        
+                        obstacles.splice(index, 1);
+                        createParticle(obstacle.x + 30, obstacle.y + 30, '#ffaa00');
+                        score += 5; // Бонусные очки за уничтожение препятствий
                     }
                 });
             }
@@ -352,6 +404,18 @@
                     fuel = Math.min(100, fuel + 15);
                     score += 10;
                     createParticle(coffee.x + 10, coffee.y + 16, '#8B4513');
+                }
+            });
+            
+            hotdogs.forEach((hotdog, index) => {
+                if (player.x < hotdog.x + hotdog.width &&
+                    player.x + player.width > hotdog.x &&
+                    player.y < hotdog.y + hotdog.height &&
+                    player.y + player.height > hotdog.y) {
+                    hotdogs.splice(index, 1);
+                    hotdogTimer = 300; // 5 секунд эффекта (при 60 FPS)
+                    score += 20;
+                    createParticle(hotdog.x + 22.5, hotdog.y + 22.5, '#FFD700');
                 }
             });
         }
@@ -376,8 +440,17 @@
             if (invulnerableTimer > 0) {
                 invulnerableTimer--;
             }
+            
+            if (hotdogTimer > 0) {
+                hotdogTimer--;
+            }
 
             let currentGameSpeed = slowDownTimer > 0 ? gameSpeed * 0.3 : gameSpeed;
+            
+            // Ускорение от хот-дога
+            if (hotdogTimer > 0) {
+                currentGameSpeed *= 1.5;
+            }
 
             bgY += currentGameSpeed;
             if (bgY >= 600) bgY = 0;
@@ -394,6 +467,13 @@
                 coffee.y += currentGameSpeed;
                 if (coffee.y > canvas.height) {
                     coffees.splice(index, 1);
+                }
+            });
+            
+            hotdogs.forEach((hotdog, index) => {
+                hotdog.y += currentGameSpeed;
+                if (hotdog.y > canvas.height) {
+                    hotdogs.splice(index, 1);
                 }
             });
 
@@ -424,8 +504,14 @@
 
             spawnObstacle();
             spawnCoffee();
+            spawnHotdog();
             checkCollisions();
             updateUI();
+        }
+
+        function drawHeart(x, y, filled) {
+            const heartImg = filled ? images.heart : images['heart-empty'];
+            ctx.drawImage(heartImg, x - 12, y - 12, 24, 24);
         }
 
         function draw() {
@@ -435,14 +521,16 @@
                 ctx.drawImage(images.bg, 0, bgY - 600, 400, 600);
                 ctx.drawImage(images.bg, 0, bgY, 400, 600);
 
-              
-
                 obstacles.forEach(obstacle => {
                     ctx.drawImage(images.obstacle, obstacle.x, obstacle.y, obstacle.width, obstacle.height);
                 });
 
                 coffees.forEach(coffee => {
                     ctx.drawImage(images.coffee, coffee.x, coffee.y, coffee.width, coffee.height);
+                });
+                
+                hotdogs.forEach(hotdog => {
+                    ctx.drawImage(images.hotdog, hotdog.x, hotdog.y, hotdog.width, hotdog.height);
                 });
 
                 particles.forEach(particle => {
@@ -496,7 +584,6 @@
                 ctx.textAlign = 'center';
                 ctx.fillText('Львів', progressBarX - 25, progressBarY + 15);
                 ctx.fillText('Київ', progressBarX + progressBarWidth + 25, progressBarY + 15);
-                //ctx.fillText(`${Math.floor(distanceTraveled)}/${totalDistance} км`, progressBarX + progressBarWidth/2, progressBarY + 15);
 
                 // ВЕРТИКАЛЬНЫЙ индикатор топлива справа
                 const fuelBarWidth = 20;
@@ -519,12 +606,29 @@
                 ctx.font = '12px WOG';
                 ctx.textAlign = 'center';
                 ctx.fillText('Паливо', fuelBarX + fuelBarWidth/2, fuelBarY - 5);
+
+                // СЕРДЕЧКИ (ЖИЗНИ) СПРАВА СНИЗУ
+                const heartX = canvas.width - 25;
+                const startY = canvas.height - 90;
+                
+                for (let i = 0; i < 3; i++) {
+                    const heartY = startY + (i * 30);
+                    const filled = lives > (3 - i - 1); // Меняем логику: верхнее пропадает первым
+                    drawHeart(heartX, heartY, filled);
+                }
                 
                 if (invulnerableTimer > 0) {
                     ctx.fillStyle = 'rgba(0, 150, 255, 0.5)';
                     ctx.font = '14px WOG';
                     ctx.textAlign = 'center';
                     ctx.fillText('Ой! Обережно!', canvas.width / 2, 60);
+                }
+                
+                if (hotdogTimer > 0) {
+                    ctx.fillStyle = 'rgba(255, 215, 0, 0.8)';
+                    ctx.font = '16px WOG';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('🌭 СУПЕР СИЛА! 🌭', canvas.width / 2, 80);
                 }
             }
         }
@@ -538,4 +642,3 @@
 </body>
 
 </html>
-
